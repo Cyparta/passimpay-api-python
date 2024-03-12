@@ -2,7 +2,7 @@ import hmac
 import requests
 import json
 import hashlib
-
+from urllib.parse import urlencode
 
 class PassimpayApi:
     URL_BASE = 'https://api.passimpay.io'
@@ -23,23 +23,29 @@ class PassimpayApi:
 
         if data:
             payload.update(data)
-
-        payload_str = "&".join(f"{key}={value}" for key, value in payload.items()).encode('utf-8')
-        hash_value = hmac.new(self.secret_key.encode('utf-8'), payload_str, hashlib.sha256).hexdigest()
-
-        data = {
-            'platform_id': self.platform_id,
-            'hash': hash_value,
+        payload_str = urlencode(payload)
+        #payload_str = "&".join(f"{key}={value}" for key, value in payload.items()).encode('utf-8')
+        print(payload_str)
+        #hash_value = hmac.new(self.secret_key.encode('utf-8'), payload_str, hashlib.sha256).hexdigest()
+        hash_value = hmac.new(secret_key.encode(), payload_str.encode(), hashlib.sha256).hexdigest()
+        print('hash_value : ',hash_value)
+        # data = {
+        #     'platform_id': self.platform_id,
+        #     'hash': hash_value,
+        # }
+        headers = {
+            'Content-Type': 'application/x-www-form-urlencoded'
         }
-
-        headers = {'Content-Type': 'application/json'}
-        response = requests.post(url, data=data)
+        data = payload_str + f"&hash={hash_value}"
+        print('data :',data)
+        
+        response = requests.post(url, data=data,headers=headers,verify=False)
 
         return response.json()
 
     def handle_error(self, error_message):
         if error_message:
-            print(f'Произошла ошибка: {error_message}')
+            print(f'error: {error_message}')
             return True
         return False
 
@@ -59,10 +65,11 @@ class PassimpayApi:
         self.check_and_print(f'Список доступных валют: {currencies}', error)
         return currencies, error
 
-    def invoice(self, id, amount):
+    def invoice(self, id, amount,currencies):
         data = {
             'order_id': id,
-            'amount': amount
+            'amount': amount,
+            'currencies': currencies
         }
         response = self._make_request('createorder', data)
         url, error = response.get('url'), response.get('message')
@@ -106,25 +113,28 @@ class PassimpayApi:
 
 
 # Пример использования
-platform_id = 'your_platform_id'
-secret_key = 'your_secret_key'
+platform_id = 775
+currencies='10,20,30'
+order_id = 2
+amount='100.00'
+secret_key = '846bd8-a8c82d-c2607e-41b229-f314b9'
 
 passimpay_api = PassimpayApi(platform_id, secret_key)
 
-passimpay_api.balance()
-passimpay_api.currencies()
+# passimpay_api.balance()
+# passimpay_api.currencies()
 
-order_id = 'your_order_id'
-passimpay_api.invoice_status(order_id)
+passimpay_api.invoice(order_id,amount,currencies)
+# passimpay_api.invoice_status(order_id)
 
-order_id = 'your_order_id'
-payment_id = 'your_payment_id'
-passimpay_api.payment_wallet(order_id, payment_id)
+# order_id = 'your_order_id'
+# payment_id = 'your_payment_id'
+# passimpay_api.payment_wallet(order_id, payment_id)
 
-payment_id = 'your_payment_id'
-address_to = 'recipient_address'
-amount = 100.0
-passimpay_api.withdraw(payment_id, address_to, amount)
+# payment_id = 'your_payment_id'
+# address_to = 'recipient_address'
+# amount = 100.0
+# passimpay_api.withdraw(payment_id, address_to, amount)
 
-tx_hash = 'your_transaction_hash'
-passimpay_api.transaction_status(tx_hash)
+# tx_hash = 'your_transaction_hash'
+# passimpay_api.transaction_status(tx_hash)
